@@ -19,33 +19,52 @@
 #    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 #    DEALINGS IN THE SOFTWARE
 #
-include(FetchContent)
-FetchContent_Declare(
-  tensorflow
-  GIT_REPOSITORY https://github.com/tensorflow/tensorflow.git
-  GIT_TAG v2.11.0
-)
-FetchContent_GetProperties(tensorflow)
-if(NOT tensorflow_POPULATED)
-  FetchContent_Populate(tensorflow)
-endif()
-add_subdirectory("${tensorflow_SOURCE_DIR}/tensorflow/lite"
-                 "${tensorflow_BINARY_DIR}")
-get_target_property(TFLITE_SOURCE_DIR tensorflow-lite SOURCE_DIR)
 
-if(TFLITE_LIB_LOC)
+if(EXISTS ${TFLITE_BINARY_DIR})
   message(STATUS "Will use prebuild tensorflow lite library from ${TFLITE_LIB_LOC}")
-  if(NOT EXISTS ${TFLITE_LIB_LOC})
-    message(FATAL_ERROR "tensorflow-lite library not found: ${TFLITE_LIB_LOC}")
+  if(NOT EXISTS ${TFLITE_BINARY_DIR})
+    message(FATAL_ERROR "tensorflow-lite library not found: ${TFLITE_BINARY_DIR}")
   endif()
+
+  set(TFLITE_SOURCE_DIR ${TF_SOURCES_DIR}/tensorflow/lite)
+  set(tensorflow_SOURCE_DIR ${TF_SOURCES_DIR})
+
+  set(TFLITE_INC
+    ${TFLITE_BINARY_DIR}/ruy
+    ${TFLITE_BINARY_DIR}/eigen
+    ${TFLITE_BINARY_DIR}/gemmlowp
+    ${TFLITE_BINARY_DIR}/abseil-cpp
+    ${TFLITE_BINARY_DIR}/flatbuffers/include
+    ${TFLITE_BINARY_DIR}/pthreadpool-source/include
+    ${TF_SOURCES_DIR}
+  )
+
   add_library(TensorFlow::tensorflow-lite UNKNOWN IMPORTED)
   set_target_properties(TensorFlow::tensorflow-lite PROPERTIES
-    IMPORTED_LOCATION ${TFLITE_LIB_LOC}
-    INTERFACE_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:tensorflow-lite,INTERFACE_INCLUDE_DIRECTORIES>
+    IMPORTED_LOCATION ${TFLITE_BINARY_DIR}/libtensorflow-lite.a
+    INTERFACE_INCLUDE_DIRECTORIES "${TFLITE_INC}"
   )
-  set_target_properties(tensorflow-lite PROPERTIES EXCLUDE_FROM_ALL TRUE)
+
 else()
+
+  include(FetchContent)
+  FetchContent_Declare(
+    tensorflow
+    GIT_REPOSITORY https://github.com/tensorflow/tensorflow.git
+    GIT_TAG v2.11.0
+  )
+  FetchContent_GetProperties(tensorflow)
+  if(NOT tensorflow_POPULATED)
+    FetchContent_Populate(tensorflow)
+  endif()
+  add_subdirectory("${tensorflow_SOURCE_DIR}/tensorflow/lite"
+                  "${tensorflow_BINARY_DIR}")
+  get_target_property(TFLITE_SOURCE_DIR tensorflow-lite SOURCE_DIR)
+
   add_library(TensorFlow::tensorflow-lite ALIAS tensorflow-lite)
+
+  set_target_properties(tensorflow-lite PROPERTIES EXCLUDE_FROM_ALL TRUE)
+
 endif()
 
 

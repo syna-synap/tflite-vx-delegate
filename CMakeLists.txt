@@ -74,18 +74,25 @@ if(ANDROID_TOOLCHAIN)
 endif()
 
 target_link_libraries(vx_delegate ${VX_DELEGATE_DEPENDENCIES})
-if((NOT DEFINED TIM_VX_INSTALL))
-target_link_libraries(vx_delegate -Wl,--whole-archive tim-vx)
+if(NOT EXISTS ${TIM_VX_LIB})
+  target_link_libraries(vx_delegate -Wl,--whole-archive tim-vx)
 endif()
+
+install(TARGETS vx_delegate DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})
+
 add_library(vx_custom_op STATIC ${VX_CUSTOM_OP_SRCS})
 target_include_directories(vx_custom_op PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(vx_custom_op TensorFlow::tensorflow-lite)
 add_dependencies(vx_custom_op vx_delegate)
 
-set_target_properties(benchmark_model PROPERTIES INTERFACE_LINK_LIBRARIES vx_custom_op)
-set_target_properties(label_image PROPERTIES INTERFACE_LINK_LIBRARIES vx_custom_op)
+if(NOT EXISTS ${TFLITE_BINARY_DIR})
 
-add_subdirectory(examples/minimal)
-if(TFLITE_ENABLE_MULTI_DEVICE)
-  add_subdirectory(examples/multi_device)
+  set_target_properties(benchmark_model PROPERTIES INTERFACE_LINK_LIBRARIES vx_custom_op)
+  set_target_properties(label_image PROPERTIES INTERFACE_LINK_LIBRARIES vx_custom_op)
+
+  add_subdirectory(examples/minimal)
+  if(TFLITE_ENABLE_MULTI_DEVICE)
+    add_subdirectory(examples/multi_device)
+  endif()
+
 endif()
