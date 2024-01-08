@@ -64,6 +64,8 @@ if(TFLITE_ENABLE_MULTI_DEVICE)
   ADD_DEFINITIONS(-DMULTI_DEVICE_FEATURE_MODE)
 endif()
 
+add_link_options($<$<CONFIG:RELEASE>:-s>)
+
 add_library(vx_delegate SHARED ${VX_DELEGATES_SRCS})
 
 list(APPEND VX_CUSTOM_OP_SRCS
@@ -74,7 +76,7 @@ if(ANDROID_TOOLCHAIN)
 endif()
 
 target_link_libraries(vx_delegate ${VX_DELEGATE_DEPENDENCIES})
-if(NOT EXISTS ${TIM_VX_LIB})
+if(NOT DEFINED TIM_VX_LIB)
   target_link_libraries(vx_delegate -Wl,--whole-archive tim-vx)
 endif()
 
@@ -85,7 +87,7 @@ target_include_directories(vx_custom_op PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(vx_custom_op TensorFlow::tensorflow-lite)
 add_dependencies(vx_custom_op vx_delegate)
 
-if(NOT EXISTS ${TFLITE_BINARY_DIR})
+if(NOT DEFINED TFLITE_BINARY_DIR)
 
   set_target_properties(benchmark_model PROPERTIES INTERFACE_LINK_LIBRARIES vx_custom_op)
   set_target_properties(label_image PROPERTIES INTERFACE_LINK_LIBRARIES vx_custom_op)

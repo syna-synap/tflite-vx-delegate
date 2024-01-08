@@ -25,7 +25,7 @@ if(TFLITE_ENABLE_MULTI_DEVICE)
   set(TIM_VX_ENABLE_40BIT "ON")
 endif()
 
-if(EXISTS ${TIM_VX_LIB})
+if(TIM_VX_LIB)
   message("=== Building with TIM_VX_LIBRIRIES from ${TIM_VX_LIB} ===")
 
   include_directories(${TIM_VX_INC})

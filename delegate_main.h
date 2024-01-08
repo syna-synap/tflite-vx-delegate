@@ -162,6 +162,8 @@ class Delegate {
 
   size_t nbg_size_;
   std::fstream fs_;
+
+  std::string cache_file_path_{};
 };
 
 }  // namespace delegate

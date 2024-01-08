@@ -20,11 +20,8 @@
 #    DEALINGS IN THE SOFTWARE
 #
 
-if(EXISTS ${TFLITE_BINARY_DIR})
-  message(STATUS "Will use prebuild tensorflow lite library from ${TFLITE_LIB_LOC}")
-  if(NOT EXISTS ${TFLITE_BINARY_DIR})
-    message(FATAL_ERROR "tensorflow-lite library not found: ${TFLITE_BINARY_DIR}")
-  endif()
+if(EXISTS ${TF_SOURCES_DIR})
+  message(STATUS "Will use prebuild tensorflow lite library from ${TFLITE_BINARY_DIR}")
 
   set(TFLITE_SOURCE_DIR ${TF_SOURCES_DIR}/tensorflow/lite)
   set(tensorflow_SOURCE_DIR ${TF_SOURCES_DIR})
@@ -41,7 +38,7 @@ if(EXISTS ${TFLITE_BINARY_DIR})
 
   add_library(TensorFlow::tensorflow-lite UNKNOWN IMPORTED)
   set_target_properties(TensorFlow::tensorflow-lite PROPERTIES
-    IMPORTED_LOCATION ${TFLITE_BINARY_DIR}/libtensorflow-lite.a
+    IMPORTED_LOCATION ${TFLITE_BINARY_DIR}/libtensorflow-lite.so
     INTERFACE_INCLUDE_DIRECTORIES "${TFLITE_INC}"
   )
 

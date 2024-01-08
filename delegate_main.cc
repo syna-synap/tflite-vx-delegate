@@ -423,6 +423,9 @@ std::unique_ptr<vx::delegate::OpData> Delegate::Init(
     is_cache_present_ = fs_ ? true : false;
     nbg_size_ = fs_.tellg();
     fs_.close();
+
+    cache_file_path_ = derivedDelegate->cache_path;
+    TFLITE_LOG_PROD(TFLITE_LOG_ERROR, "cache file name %s", cache_file_path_.c_str());
   }
 
 #ifdef MULTI_DEVICE_FEATURE_MODE
@@ -641,33 +644,59 @@ TfLiteStatus Delegate::Invoke(const OpData& op_data,
     tim::transform::MeanStdDevNormalization(graph_);
     // Do layout inference and get a new graph(first) and a tensor map(second).
     layout_infered_ = tim::transform::LayoutInference(graph_, context_);
+
+
 #ifdef MULTI_DEVICE_FEATURE_MODE
       executor_ = std::make_shared<tim::vx::platform::NativeExecutor>(devices_[device_id_]);
       executable_ = tim::vx::platform::Compile(layout_infered_.first, executor_);
 #else
-    if(is_cache_present_ && !is_cache_present_.value()){
+
+    if (is_cache_present_ && !layout_infered_.first->SetCachePath(cache_file_path_)) {
+      TFLITE_LOG_PROD(TFLITE_LOG_ERROR, "failed to set cache path");
+    }
+
+    if (is_cache_present_ && !is_cache_present_.value()) {
+
       nbg_size_ = -1;
       compiled_ = layout_infered_.first->CompileToBinary(nullptr, &nbg_size_);
       if (!compiled_) {
         TFLITE_LOG_PROD(TFLITE_LOG_ERROR, "compile to binary failed");
         return kTfLiteDelegateError;
-        }
-        std::vector<uint8_t> nbg_buf(nbg_size_);
-        compiled_ = layout_infered_.first->CompileToBinary(nbg_buf.data(), &nbg_size_);
-        if (!compiled_) {
-          TFLITE_LOG_PROD(TFLITE_LOG_ERROR, "compile to binary failed");
-          return kTfLiteDelegateError;
-        }
-        fs_.write(reinterpret_cast<const char*>(nbg_buf.data()),nbg_size_);
-        fs_.close();
-    } else {
-      compiled_ = layout_infered_.first->Compile();
+      }
+      std::vector<uint8_t> nbg_buf(nbg_size_);
+      compiled_ =
+          layout_infered_.first->CompileToBinary(nbg_buf.data(), &nbg_size_);
       if (!compiled_) {
-        TFLITE_LOG_PROD(TFLITE_LOG_ERROR, "Failed to verify graph");
+        TFLITE_LOG_PROD(TFLITE_LOG_ERROR, "compile to binary failed");
         return kTfLiteDelegateError;
       }
-      TFLITE_LOG(TFLITE_LOG_INFO, "Verified graph");
+      fs_.write(reinterpret_cast<const char*>(nbg_buf.data()), nbg_size_);
+      fs_.close();
+    } else {
+      if (!cache_file_path_.empty()) {
+        std::string ebg_file = cache_file_path_ + ".ebg";
+        std::fstream ebg_fs;
+        ebg_fs.open(ebg_file.c_str(), std::ios::in | std::ios::ate);
+        bool is_ebg_cache_present = ebg_fs ? true : false;
+        is_ebg_cache_present = ebg_fs.tellg() > 0 ? true : false;
+        ebg_fs.close();
+
+        if (is_ebg_cache_present) {
+          compiled_ = layout_infered_.first->CompileToBinary(nullptr, nullptr);
+          if (!compiled_) {
+            TFLITE_LOG_PROD(TFLITE_LOG_ERROR, "compile to binary failed");
+            return kTfLiteDelegateError;
+          }
+        }
+      }
     }
+
+    compiled_ = layout_infered_.first->Compile();
+    if (!compiled_) {
+      TFLITE_LOG_PROD(TFLITE_LOG_ERROR, "Failed to verify graph");
+      return kTfLiteDelegateError;
+    }
+    TFLITE_LOG(TFLITE_LOG_INFO, "Verified graph");
 #endif
   }
 
